@@ -91,7 +91,6 @@ export default {
   },
   mounted() {
     this.applyTheme();
-
     this.loadIdentity();
     this.interval = setInterval(this.loadIdentity, 5000);
   },
@@ -265,9 +264,8 @@ export default {
   justify-content: space-between;
   min-height: 64px;
   padding: 0 28px;
-  background: color-mix(in srgb, var(--rf-surface) 92%, transparent);
+  background: var(--rf-surface);
   border-bottom: 1px solid var(--rf-border);
-  backdrop-filter: blur(12px);
 }
 
 .connection,

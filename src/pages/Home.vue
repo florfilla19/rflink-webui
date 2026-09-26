@@ -1,155 +1,364 @@
 <template>
-	<div style="display: flex; flex-direction: column; align-items: center">
-		<h1 class="page-title">Home</h1>
-		<div class="container" style="min-width: 33%" v-if="loaded">
+  <div class="dashboard">
+    <div class="page-heading">
+      <div>
+        <h1 class="page-title">Bienvenue sur RFLink32</h1>
+        <p class="page-subtitle">Votre passerelle RF pour la maison connectée</p>
+      </div>
+    </div>
 
-			<h2 style="margin: 5px 0;">Status</h2>
-			<table style="border: 1px solid black">
-				<tr>
-					<td class="category">Uptime:</td>
-					<td v-if="status.uptime" colspan="2">{{ status.uptime | sec_to_human }}</td>
-				</tr>
-				
-				<tr>
-					<td class="category">Software Version:</td>
-					<td v-if="status.sw_version" colspan="2">{{ status.sw_version }}</td>
-				</tr>
+    <div v-if="loaded" class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">◷</div>
+        <div>
+          <span class="stat-label">Uptime</span>
+          <strong>{{ status.uptime | sec_to_human }}</strong>
+          <small class="state-ok">● En ligne</small>
+        </div>
+      </div>
 
-				<tr><td rowspan="3" class="category">Signals</td></tr>
-				<tr>
-					<td class="setting">Received Count</td>
-					<td v-if="status.signal.received_signal_count" :class="[`status-${status.signal.received_signal_count}`]">{{ status.signal.received_signal_count }}</td>
-				</tr>
-				<tr>
-					<td class="setting">Successfully Decoded</td>
-					<td v-if="status.signal.successfully_decoded_count" :class="[`status-${status.signal.successfully_decoded_count}`]">{{ status.signal.successfully_decoded_count }}</td>
-				</tr>
+      <div class="stat-card">
+        <div class="stat-icon">◉</div>
+        <div>
+          <span class="stat-label">Réception RF</span>
+          <strong>{{ status.signal.received_signal_count || 0 }}</strong>
+          <small>{{ status.signal.successfully_decoded_count || 0 }} décodés</small>
+        </div>
+      </div>
 
-				<tr><td rowspan="2" class="category">MQTT</td></tr>
-				<tr>
-					<td class="setting">Status</td>
-					<td v-if="status.mqtt.status" :class="[`status-${status.mqtt.status}`]">{{ status.mqtt.status }}</td>
-				</tr>
+      <div class="stat-card">
+        <div class="stat-icon">⌁</div>
+        <div>
+          <span class="stat-label">Wi-Fi</span>
+          <strong>{{ wifiStatusLabel }}</strong>
+          <small>{{ wifiIp }}</small>
+        </div>
+      </div>
 
-				<tr><td rowspan="5" class="category">Wifi Client Mode</td></tr>
-				<tr>
-					<td class="setting">Status</td>
-					<td v-if="status.network.wifi_client" :class="[`status-${status.network.wifi_client.status}`]">{{ status.network.wifi_client.status }}</td>
-				</tr>
-				<tr>
-					<td class="setting">IP Address</td>
-					<td v-if="status.network.wifi_client">{{ status.network.wifi_client.ip }}</td>
-				</tr>
-				<tr>
-					<td class="setting">Netmask</td>
-					<td v-if="status.network.wifi_client">{{ status.network.wifi_client.netmask }}</td>
-				</tr>
-				<tr>
-					<td class="setting">DNS</td>
-					<td v-if="status.network.wifi_client">{{ status.network.wifi_client.dns }}</td>
-				</tr>
+      <div class="stat-card">
+        <div class="stat-icon">◇</div>
+        <div>
+          <span class="stat-label">MQTT</span>
+          <strong :class="statusClass(status.mqtt && status.mqtt.status)">{{ mqttStatusLabel }}</strong>
+          <small>{{ status.mqtt && status.mqtt.status ? status.mqtt.status : "—" }}</small>
+        </div>
+      </div>
+    </div>
 
-				<tr><td rowspan="2" class="category">Wifi Access Point</td></tr>
-				<tr>
-					<td class="setting">Status</td>
-					<td v-if="status.network.wifi_ap" :class="[`status-${status.network.wifi_ap.status}`]">{{ status.network.wifi_ap.status }}</td>
-				</tr>
+    <div class="dashboard-grid">
+      <section class="container system-card">
+        <div class="section-heading">
+          <div>
+            <h2>Informations système</h2>
+            <p>État actuel de la passerelle</p>
+          </div>
+        </div>
 
-				<tr><td rowspan="3" class="category">Serial2Net</td></tr>
-				<tr>
-					<td class="setting">Status</td>
-					<td v-if="status.serial2net.status" :class="[`status-${status.serial2net.status}`]">{{ status.serial2net.status }}</td>
-				</tr>
-				<tr>
-					<td class="setting">Client count</td>
-					<td v-if="status.serial2net.clients_count" >{{ status.serial2net.clients_count }}</td>
-				</tr>
-				<!--<tr><td rowspan="3" class="category">Plugins</td></tr>
-				<tr>
-					<td class="setting">Count</td>
-					<td v-if="status.plugins">{{ status.plugins.count }}</td>
-				</tr>
-				<tr>
-					<td class="setting">Active</td>
-					<td v-if="status.plugins">{{ status.plugins.active_count }}</td>
-				</tr>-->
+        <div class="info-list">
+          <div class="info-row">
+            <span>Version firmware</span>
+            <strong>{{ status.sw_version || "—" }}</strong>
+          </div>
+          <div class="info-row">
+            <span>Adresse IP</span>
+            <strong>{{ wifiIp }}</strong>
+          </div>
+          <div class="info-row">
+            <span>Wi-Fi</span>
+            <strong :class="statusClass(wifiStatus)">{{ wifiStatusLabel }}</strong>
+          </div>
+          <div class="info-row">
+            <span>Serial2Net</span>
+            <strong>{{ serialStatusLabel }}</strong>
+          </div>
+        </div>
+      </section>
 
-			</table>
-		</div>
+      <section class="container controls-card">
+        <div class="section-heading">
+          <div>
+            <h2>Contrôles</h2>
+            <p>Actions sur la passerelle</p>
+          </div>
+        </div>
+        <button class="btn-green control-button" @click="esp_reboot">↻ &nbsp; Redémarrer</button>
+      </section>
+    </div>
 
-		<div class="container" style="min-width: 33%">
-			<h2 style="margin: 5px 0;">Controls</h2>
-			<div style="width: 100%; display:flex;">
-				<button class="btn-red btn-big" @click="esp_reboot" style="flex-grow: 1">REBOOT</button>
-			</div>
-		</div>
-	</div>
+    <section class="container">
+      <div class="section-heading">
+        <div>
+          <h2>Activité RF</h2>
+          <p>Compteurs fournis par le firmware</p>
+        </div>
+        <span class="activity-badge">RF actif</span>
+      </div>
+
+      <div class="activity-grid">
+        <div class="activity-item">
+          <span>Paquets reçus</span>
+          <strong>{{ status.signal.received_signal_count || 0 }}</strong>
+        </div>
+        <div class="activity-item">
+          <span>Décodés</span>
+          <strong>{{ status.signal.successfully_decoded_count || 0 }}</strong>
+        </div>
+        <div class="activity-item">
+          <span>Serial2Net</span>
+          <strong>{{ status.serial2net && status.serial2net.clients_count || 0 }} client(s)</strong>
+        </div>
+      </div>
+    </section>
+  </div>
 </template>
 
 <script>
-	import {api_mixin} from "../api_mixin";
+import { api_mixin } from "../api_mixin";
 
-	export default {
-		name: "Home",
-		mixins: [api_mixin],
-		data () {
-			return {
-				polling: null
-			}
-		},
-		computed: {
-			loaded() {
-				return this.status.network !== undefined && this.status.uptime !== 0
-			}
-		},
-		methods: {
-		},
-		mounted () {
-			this.reload_status()
-			this.polling = setInterval(() => {
-				this.reload_status()
-			}, 10000)
-		},
-		beforeDestroy() {
-			clearInterval(this.polling);
-		}
-	}
+export default {
+  name: "Home",
+  mixins: [api_mixin],
+  data() {
+    return {
+      polling: null
+    };
+  },
+  computed: {
+    loaded() {
+      return this.status.network !== undefined && this.status.uptime !== 0;
+    },
+    wifiStatus() {
+      return this.status.network &&
+        this.status.network.wifi_client &&
+        this.status.network.wifi_client.status
+        ? this.status.network.wifi_client.status
+        : "disabled";
+    },
+    wifiStatusLabel() {
+      return this.wifiStatus === "connected" ? "Connecté" : this.wifiStatus;
+    },
+    wifiIp() {
+      return this.status.network &&
+        this.status.network.wifi_client &&
+        this.status.network.wifi_client.ip
+        ? this.status.network.wifi_client.ip
+        : "—";
+    },
+    mqttStatusLabel() {
+      const value = this.status.mqtt && this.status.mqtt.status;
+      if (value === "connected") return "Connecté";
+      if (value === "disabled") return "Désactivé";
+      return value || "—";
+    },
+    serialStatusLabel() {
+      return this.status.serial2net && this.status.serial2net.status
+        ? this.status.serial2net.status
+        : "—";
+    }
+  },
+  methods: {
+    statusClass(value) {
+      return value ? "status-" + value : "";
+    }
+  },
+  mounted() {
+    this.reload_status();
+    this.polling = setInterval(() => this.reload_status(), 10000);
+  },
+  beforeDestroy() {
+    clearInterval(this.polling);
+  }
+};
 </script>
 
 <style scoped>
-	.status-connected,.status-enabled,.status-running {
-		color: #3db43d;
-	}
-	.status-disconnected {
-		color: #dc872e;
-	}
-	.status-disabled {
-		color: #929292;
-	}
+.dashboard {
+  width: 100%;
+}
 
-	table {
-		font-family: arial, sans-serif;
-		border-collapse: collapse;
-		width: 100%;
-		border: 1px solid #dddddd;
-	}
+.page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
 
-	tr {
-		border: 1px solid #dddddd;
-	}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
 
-	td, th {
-		border: 1px solid #dddddd;
-		text-align: left;
-		padding: 8px;
-	}
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 112px;
+  padding: 17px;
+  background: var(--rf-surface);
+  border: 1px solid var(--rf-border);
+  border-radius: var(--rf-radius);
+  box-shadow: var(--rf-shadow);
+}
 
-	.category {
-		font-weight: bold;
-		font-size: 1.15rem;
-	}
+.stat-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--rf-primary);
+  background: #eaf4ff;
+  border-radius: 11px;
+  font-size: 1.35rem;
+}
 
-	.setting {
-		font-size: 1.05rem;
-	}
+.stat-card > div:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.stat-label {
+  color: var(--rf-muted);
+  font-size: .76rem;
+  font-weight: 600;
+}
+
+.stat-card strong {
+  margin: 3px 0;
+  color: var(--rf-text);
+  font-size: 1.02rem;
+}
+
+.stat-card small {
+  color: var(--rf-muted);
+  font-size: .7rem;
+}
+
+.state-ok {
+  color: var(--rf-success) !important;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(260px, .75fr);
+  gap: 16px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 16px;
+}
+
+.section-heading h2 {
+  margin-bottom: 4px;
+}
+
+.section-heading p {
+  margin: 0;
+  color: var(--rf-muted);
+  font-size: .76rem;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.info-row:last-child {
+  border-bottom: 0;
+}
+
+.info-row span {
+  color: var(--rf-muted);
+  font-size: .82rem;
+}
+
+.info-row strong {
+  max-width: 65%;
+  color: var(--rf-text);
+  font-size: .82rem;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.control-button {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.activity-badge {
+  padding: 5px 9px;
+  color: var(--rf-success);
+  background: rgba(16, 166, 106, .09);
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.activity-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 15px;
+  background: var(--rf-surface-soft);
+  border: 1px solid var(--rf-border);
+  border-radius: 9px;
+}
+
+.activity-item span {
+  color: var(--rf-muted);
+  font-size: .75rem;
+}
+
+.activity-item strong {
+  color: var(--rf-text);
+  font-size: 1.05rem;
+}
+
+@media (max-width: 1050px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 500px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    min-height: 88px;
+  }
+}
 </style>

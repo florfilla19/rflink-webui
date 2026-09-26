@@ -1,227 +1,370 @@
 <template>
-	<div class="app">
-		<div class="menu" :style="menu_container">
-			<nav role="navigation" class="mobile-menu" style="display: flex; flex-direction: column; height: 100%">
-				<div>
-					<h1 style="text-align: center; margin-top: 0; margin-bottom: 0">Menu</h1>
-				</div>
-				<ul class="menu-cat" style="flex-grow: 1">
-					<router-link class="link" @click.native="toggle" to="/home"><li><span class="link-icon">&#127968;</span> Home</li></router-link>
-					<router-link class="link" @click.native="toggle" to="/wifi"><li><span class="link-icon">&#128246;</span> Wifi</li></router-link>
-					<router-link class="link" @click.native="toggle" to="/radio"><li><span class="link-icon">&#128225;</span> Radio</li></router-link>
-					<router-link class="link" @click.native="toggle" to="/signal"><li><span class="link-icon">&#128225;</span> Signals</li></router-link>
-					<router-link class="link" @click.native="toggle" to="/plugins"><li><span class="link-icon">&#129520;</span> Plugins</li></router-link>
-					<router-link class="link" @click.native="toggle" to="/services"><li><span class="link-icon">&#127760;</span> Services</li></router-link>
-					<router-link class="link" @click.native="toggle" to="/firmware"><li><span class="link-icon">&#128190;</span> Firmware</li></router-link>
-				</ul>
-				<ul class="menu-cat">
-					<router-link class="link" @click.native="toggle" to="/infos"><li>Infos / Credits</li></router-link>
-				</ul>
-			</nav>
-		</div>
-		<div class="menu-backdrop" :style="menu_backdrop" @click="toggle"></div>
+  <div class="app-shell">
+    <aside class="sidebar" :class="{ 'sidebar-open': mobileOpen }">
+      <div class="brand">
+        <div class="brand-mark">◉</div>
+        <div class="brand-copy">
+          <strong>RFLink32</strong>
+          <span>RF gateway</span>
+        </div>
+      </div>
 
+      <nav class="sidebar-nav" aria-label="Navigation principale">
+        <router-link v-for="item in navItems" :key="item.path" :to="item.path" class="nav-item" @click.native="mobileOpen = false">
+          <span class="nav-icon">{{ item.icon }}</span>
+          <span>{{ item.label }}</span>
+        </router-link>
+      </nav>
 
-		<!-- Page container -->
-		<div class="page" :style="page_container">
-			<div class="navbar">
-				<input ref="checkbox" v-model="navbar_open" type="checkbox" id="menu-checkbox">
-				<label for="menu-checkbox" id="mobile-menu-overlay"></label>
-				<header>
-					<div>
-						<label v-if="this.windowWidth <= this.navbar_breakpoint" for="menu-checkbox">
-							<span class="menu-link">&#9776;</span>
-						</label>
-					</div>
-					<div style="display: flex; justify-content: center; flex-direction: column">
-						<h2 class="white" style="margin: 0; text-align: center">{{ title }}</h2>
-					</div>
-					<div class="menu-btn-container">
-						<button @click="$root.$emit('reload_btn')" class="menu-btn">&#128472;</button>
-					</div>
-				</header>
-			</div>
+      <div class="sidebar-footer">
+        <span class="online-dot"></span>
+        <div>
+          <strong>{{ hostname || "RFLink-ESP" }}</strong>
+          <small>{{ ip || "Connexion..." }}</small>
+        </div>
+      </div>
+    </aside>
 
-			<div class="page-slot-container" style="">
-				<slot></slot>
-			</div>
-		</div>
-		<VueTitle :title="title"></VueTitle>
-	</div>
+    <div v-if="mobileOpen" class="mobile-backdrop" @click="mobileOpen = false"></div>
+
+    <main class="main-shell">
+      <header class="topbar">
+        <button class="icon-button mobile-toggle" type="button" aria-label="Ouvrir le menu" @click="mobileOpen = true">☰</button>
+
+        <div class="connection">
+          <span class="online-dot"></span>
+          <span>Connecté</span>
+          <span class="separator">•</span>
+          <span class="connection-chip">ESP32-C3</span>
+          <span class="connection-chip">CC1101</span>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="icon-button" type="button" :aria-label="darkMode ? 'Activer le mode clair' : 'Activer le mode sombre'" @click="toggleDarkMode">
+            {{ darkMode ? "☀" : "☾" }}
+          </button>
+          <button class="icon-button" type="button" aria-label="Actualiser" @click="$root.$emit('reload_btn')">↻</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <slot></slot>
+      </section>
+    </main>
+
+    <VueTitle :title="title" />
+  </div>
 </template>
 
 <script>
-	import VueTitle from "./VueTitle";
-	import axios from "axios";
-	export default {
-		name: "Navigation",
-		components: {VueTitle},
-		data() {
-			return {
-				windowWidth: window.innerWidth,
-				navbar_open: false,
-				navbar_breakpoint: 992,
-				navbar_width: 290,
-				hostname: "",
-				ip: "",
-				interval: null,
-			}
-		},
-		mounted() {
-			window.addEventListener('resize', () => {
-				this.windowWidth = window.innerWidth
-				if(window.innerWidth<992) this.navbar_open = false
-			})
+import VueTitle from "./VueTitle";
+import axios from "axios";
 
-			this.interval = setInterval(()=>{
-				axios.get("/api/status").then(response => {
-					this.ip = response.data.network.wifi_client.ip
-					if(this.hostname !== "") clearInterval(this.interval)
-				}).catch(console.error);
+export default {
+  name: "Navigation",
+  components: { VueTitle },
+  data() {
+    return {
+      mobileOpen: false,
+      darkMode: localStorage.getItem("rflink-dark-mode") === "1",
+      hostname: "",
+      ip: "",
+      interval: null,
+      navItems: [
+        { path: "/home", label: "Accueil", icon: "⌂" },
+        { path: "/radio", label: "Radio", icon: "◉" },
+        { path: "/wifi", label: "Réseau", icon: "⌁" },
+        { path: "/signal", label: "Paramètres RF", icon: "◌" },
+        { path: "/services", label: "MQTT & Services", icon: "◇" },
+        { path: "/plugins", label: "Plugins", icon: "✣" },
+        { path: "/firmware", label: "Firmware", icon: "⇧" },
+        { path: "/infos", label: "Système", icon: "ⓘ" }
+      ]
+    };
+  },
+  computed: {
+    title() {
+      let out = "RFLink32";
+      if (this.hostname) out += " | " + this.hostname;
+      return out;
+    }
+  },
+  mounted() {
+    this.applyTheme();
+    this.loadIdentity();
+    this.interval = setInterval(this.loadIdentity, 5000);
+  },
+  beforeDestroy() {
+    if (this.interval) clearInterval(this.interval);
+  },
+  methods: {
+    loadIdentity() {
+      axios.get("/api/status").then(response => {
+        const wifi = response.data && response.data.network && response.data.network.wifi_client;
+        if (wifi && wifi.ip) this.ip = wifi.ip;
+      }).catch(() => {});
 
-				axios.get("/api/config").then(response => {
-					this.hostname = response.data.wifi.client_hostname
-					if(this.ip !== "") clearInterval(this.interval)
-				}).catch(console.error);
-			},1000)
-		},
-		computed: {
-			title() {
-				let out = "RFLink-ESP"
-				if(this.hostname) out += " | "+this.hostname
-				if(this.ip) out += " ("+this.ip+")"
-				return out
-			},
-			page_container() {
-				return {
-					left: this.windowWidth > this.navbar_breakpoint ? this.navbar_width+"px" : "0",
-					width: this.windowWidth > this.navbar_breakpoint ? "calc(100% - "+this.navbar_width+"px)" : "100%"
-				}
-			},
-			menu_container() {
-				return {
-					width: this.navbar_width+"px",
-					left: this.windowWidth > this.navbar_breakpoint ? "0" : (this.navbar_open ? "0" : "-100%")
-				}
-			},
-			menu_backdrop() {
-				return {
-					display: this.windowWidth > this.navbar_breakpoint ? "none" : (this.navbar_open ? "block" : "none"),
-					opacity: this.windowWidth > this.navbar_breakpoint ? "0%" : (this.navbar_open ? "100%" : "0%")
-				}
-			}
-		},
-		methods: {
-			toggle() {
-				this.navbar_open = !this.navbar_open
-			}
-		}
-	}
+      axios.get("/api/config").then(response => {
+        if (response.data && response.data.wifi) {
+          this.hostname = response.data.wifi.client_hostname || "";
+        }
+      }).catch(() => {});
+    },
+    applyTheme() {
+      document.documentElement.classList.toggle("dark-theme", this.darkMode);
+    },
+    toggleDarkMode() {
+      this.darkMode = !this.darkMode;
+      localStorage.setItem("rflink-dark-mode", this.darkMode ? "1" : "0");
+      this.applyTheme();
+    }
+  }
+};
 </script>
 
 <style scoped>
-	.app {
-		display: flex;
-		flex-direction: row;
-		height: 100vh;
-	}
-	.menu {
-		position: absolute;
-		top: 0;
-		left: 0;
-		z-index: 20;
-		background-color: white;
-		height: 100vh;
-		transition: all 0.25s;
-	}
-	.menu-backdrop {
-		position: absolute;
-		top: 0;
-		left: 0;
-		z-index: 10;
-		background-color: #0008;
-		height: 100vh;
-		width: 100%;
-		transition: all 0.4s;
-	}
-	.page {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-	}
-	.page-slot-container {
-		height: calc(100% - 32px - 46px);
-		overflow-y: auto;
-		padding: 8px;
-	}
+.app-shell {
+  min-height: 100vh;
+  background: var(--rf-bg);
+}
 
-	.navbar > header {
-		background-color: #333;
-		padding: .5em;
-		display: grid;
-		grid-template-columns: auto auto auto;
-		justify-items: stretch;
-	}
-	.navbar > header .menu-link {
-		color: #fff;
-		text-transform: uppercase;
-		border: 1px solid white;
-		border-radius: 5px;
-		padding: 5px 10px;
-	}
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: 238px;
+  background: linear-gradient(180deg, var(--rf-sidebar), #071e33);
+  color: #dceaf7;
+  box-shadow: 6px 0 24px rgba(4, 24, 43, .08);
+}
 
-	.navbar > header > .menu-btn-container {
-		padding-bottom: 5px;
-		display: grid;
-		grid-template-columns: auto;
-		justify-items: right;
-	}
-	.navbar > header > .menu-btn-container > .menu-btn {
-		color: #fff;
-		font-size: 25px;
-		background-color: transparent;
-		border: 1px solid white;
-		border-radius: 5px;
-		padding: 0px 15px;
-		height: 100%;
-		width: auto;
-	}
-	#menu-checkbox {
-		display: none;
-	}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 76px;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
 
-	.menu > nav > div {
-		background-color: #585858;
-		height: calc(16px + 46px);
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		color: #fff;
-	}
-	.menu > nav > ul  {
-		background-color: #a8a7a7;
-		padding: .5em 0px;
-		color: #fff;
-	}
-	.link > li  {
-		padding: 10px;
-		margin-top: 0px;
-	}
-	.link > li:hover {
-		background-color: #0002;
-	}
-	.link {
-		text-decoration: none;
-		font-size: 1rem;
-		color: black;
-	}
-	.link-icon {
-		font-size: 1.2rem;
-	}
+.brand-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: #fff;
+  background: var(--rf-primary);
+  border-radius: 10px;
+  font-size: 18px;
+}
 
-	.menu-link {
-		font-size: 30px;
-	}
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-copy strong {
+  color: #fff;
+  font-size: 1.03rem;
+}
+
+.brand-copy span {
+  color: #89a3ba;
+  font-size: .7rem;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 12px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 0 12px;
+  color: #a9bfd3;
+  border-radius: 9px;
+  text-decoration: none;
+  font-size: .88rem;
+  transition: background .15s, color .15s;
+}
+
+.nav-item:hover {
+  color: #fff;
+  background: rgba(255,255,255,.07);
+}
+
+.nav-item.router-link-active {
+  color: #fff;
+  background: var(--rf-primary);
+  box-shadow: 0 5px 14px rgba(8, 124, 242, .25);
+}
+
+.nav-icon {
+  width: 20px;
+  text-align: center;
+  font-size: 1.05rem;
+}
+
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 12px;
+  padding: 12px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 9px;
+}
+
+.sidebar-footer strong,
+.sidebar-footer small {
+  display: block;
+}
+
+.sidebar-footer strong {
+  color: #fff;
+  font-size: .78rem;
+}
+
+.sidebar-footer small {
+  margin-top: 3px;
+  color: #88a4ba;
+  font-size: .68rem;
+}
+
+.online-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  background: var(--rf-success);
+  border-radius: 50%;
+}
+
+.main-shell {
+  min-height: 100vh;
+  margin-left: 238px;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 64px;
+  padding: 0 28px;
+  background: var(--rf-surface);
+  border-bottom: 1px solid var(--rf-border);
+}
+
+.connection,
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.connection {
+  color: var(--rf-text);
+  font-size: .78rem;
+  font-weight: 600;
+}
+
+.separator {
+  color: var(--rf-border);
+}
+
+.connection-chip {
+  color: var(--rf-muted);
+  font-weight: 500;
+}
+
+.icon-button {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  place-items: center;
+  color: var(--rf-text);
+  background: transparent;
+  border-radius: 8px;
+  font-size: 1.1rem;
+}
+
+.icon-button:hover {
+  background: var(--rf-surface-soft);
+}
+
+.mobile-toggle {
+  display: none;
+}
+
+.content {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+.mobile-backdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform .2s ease;
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  .main-shell {
+    margin-left: 0;
+  }
+
+  .mobile-toggle {
+    display: inline-grid;
+  }
+
+  .topbar {
+    padding: 0 16px;
+  }
+
+  .mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    display: block;
+    background: rgba(3, 17, 30, .48);
+  }
+
+  .content {
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .connection-chip,
+  .separator {
+    display: none;
+  }
+
+  .connection {
+    margin-left: 8px;
+  }
+}
 </style>

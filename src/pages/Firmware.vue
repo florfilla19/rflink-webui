@@ -1,6 +1,7 @@
 <template>
 	<div>
-		<h1 class="page-title" style="text-align: center;">Firmware</h1>
+		<h1 class="page-title">Firmware</h1>
+		<p class="page-subtitle">Mise à jour et maintenance du firmware</p>
 		<div class="container">
 			<h2 style="margin: 5px 0;">OTA</h2>
 			<table>

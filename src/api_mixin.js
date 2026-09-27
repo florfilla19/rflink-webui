@@ -19,6 +19,10 @@ export const api_mixin = {
 				uptime: 0,
 				network: {},
 				plugins: {}
+			},
+			api_failures: {
+				status: 0,
+				config: 0
 			}
 		}
 	},
@@ -41,21 +45,41 @@ export const api_mixin = {
 			this.reload_config();
 			this.reload_status();
 		},
-		reload_status() {
-			axios.get("/api/status").then(response => {
-				this.$set(this,"status",response.data)
-			}).catch(error => {
-				console.error(error)
-				this.$toasts.push({ type: 'error', message: 'A network error occured while fetching status: '+error, duration:10000 })
-			});
+		async request_get(endpoint, type) {
+			const max_attempts = 3;
+			const retry_delay = 350;
+
+			for (let attempt = 1; attempt <= max_attempts; attempt++) {
+				try {
+					return await axios.get(endpoint, { timeout: 2500 });
+				} catch (error) {
+					if (attempt < max_attempts) {
+						await new Promise(resolve => setTimeout(resolve, retry_delay * attempt));
+					} else {
+						this.api_failures[type] += 1;
+						// GET requests are used for polling/status information. A
+						// transient Wi-Fi/ESP response loss must not create a toast
+						// every few seconds and obscure the page.
+						console.warn("RFLink32 API temporarily unavailable:", endpoint, error.message || error);
+					}
+				}
+			}
+
+			return null;
 		},
-		reload_config() {
-			axios.get("/api/config").then(response => {
-				this.$set(this,"config",response.data)
-			}).catch(error => {
-				console.error(error)
-				this.$toasts.push({ type: 'error', message: 'A network error occured while fetching config: '+error, duration:10000 })
-			});
+		async reload_status() {
+			const response = await this.request_get("/api/status", "status");
+			if (!response) return;
+
+			this.api_failures.status = 0;
+			this.$set(this,"status",response.data);
+		},
+		async reload_config() {
+			const response = await this.request_get("/api/config", "config");
+			if (!response) return;
+
+			this.api_failures.config = 0;
+			this.$set(this,"config",response.data);
 		},
 		save_config() {
 			const errors = generateConstraintErrorsReport(this.config)

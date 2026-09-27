@@ -35,6 +35,9 @@
 
 		<div class="container">
 			<h2 style="margin: 5px 0 15px 0;">Update via HTTP URL</h2>
+			<p v-if="releasesOffline" class="release-warning">
+				Le catalogue distant est momentanément indisponible. Les versions mémorisées localement restent disponibles.
+			</p>
 				<tr>
 					<td>
 						<select v-model="selected_release">
@@ -86,6 +89,24 @@
 	import BMF from 'browser-md5-file';
 
 	const bmf = new BMF();
+	const RELEASES_CACHE_KEY = "rflink32-firmware-releases";
+	const DEFAULT_RELEASES = {
+		nightly_releases: [
+			{
+				name: "master",
+				hardware: {
+					esp32: "https://github.com/cpainchaud/RFLink32/releases/download/nightly/esp32-firmware-OTA.bin",
+					"d1 mini": "https://github.com/cpainchaud/RFLink32/releases/download/nightly/esp8266-firmware.bin"
+				}
+			},
+			{
+				name: "RTL-433",
+				hardware: {
+					esp32: "https://github.com/cpainchaud/RFLink32/releases/download/nightly-RTL_433/esp32-firmware-OTA.bin"
+				}
+			}
+		]
+	};
 
 	export default {
 		name: "Firmware",
@@ -169,22 +190,64 @@
 				uploadPercentage: 0,
 				md5: "",
 				file: null,
-				polling: null
+				polling: null,
+				releasesOffline: false
 			}
 		},
 		methods: {
+			applyReleases(releases) {
+				const keys = Object.keys(releases || {});
+				if (keys.length === 0) return false;
+				this.releases = releases;
+				if (!this.selected_release || !releases[this.selected_release]) {
+					this.selected_release = keys[0];
+				}
+				return true;
+			},
+			isValidReleases(data) {
+				if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+				return Object.keys(data).some(key => {
+					return Array.isArray(data[key]) && data[key].some(branch => {
+						return branch && branch.name && branch.hardware && typeof branch.hardware === "object";
+					});
+				});
+			},
 			getReleases() {
-				axios.get(this.releases_url).then((data)=>{
-					this.releases = data.data
-					this.selected_release = Object.keys(data.data)[0]
-				}).catch((error)=>{
-					console.error(error)
-					Swal.fire({
-						title: 'Error!',
-						html: 'A network error occured while downloading the releases: '+error,
-						icon: 'error',
-						confirmButtonText: 'Continue'
-					})
+				let hasFallback = false;
+
+				// Load the last known catalogue immediately. This prevents a transient
+				// GitHub/DNS/network problem from blocking the Firmware page.
+				try {
+					const cached = JSON.parse(localStorage.getItem(RELEASES_CACHE_KEY));
+					if (this.isValidReleases(cached)) {
+						this.applyReleases(cached);
+						hasFallback = true;
+						this.releasesOffline = true;
+					}
+				} catch (error) {
+					console.warn("Invalid cached firmware releases", error);
+				}
+
+				if (!hasFallback) {
+					this.applyReleases(DEFAULT_RELEASES);
+					this.releasesOffline = true;
+				}
+
+				axios.get(this.releases_url, { timeout: 5000 }).then((response) => {
+					if (!this.isValidReleases(response.data)) {
+						throw new Error("Invalid releases catalogue");
+					}
+					this.applyReleases(response.data);
+					this.releasesOffline = false;
+					try {
+						localStorage.setItem(RELEASES_CACHE_KEY, JSON.stringify(response.data));
+					} catch (error) {
+						console.warn("Unable to cache firmware releases", error);
+					}
+				}).catch((error) => {
+					// This request is optional: the Firmware page must remain usable
+					// when the browser temporarily cannot reach GitHub.
+					console.warn("Firmware releases catalogue unavailable", error);
 				});
 			},
 			handleUrlUpload() {
@@ -312,5 +375,15 @@
 
 
 
+
+.release-warning {
+		margin: -6px 0 14px;
+		padding: 9px 12px;
+		color: var(--rf-muted);
+		background: var(--rf-surface-soft);
+		border: 1px solid var(--rf-border);
+		border-radius: 8px;
+		font-size: .78rem;
+	}
 
 </style>

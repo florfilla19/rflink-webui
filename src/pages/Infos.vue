@@ -13,15 +13,15 @@
       </div>
 
       <div class="info-list">
-        <div class="info-row"><span>Version firmware</span><strong>X.X.X</strong></div>
-        <div class="info-row"><span>Version WebUI</span><strong>0.1.0</strong></div>
+        <div class="info-row"><span>Version firmware</span><strong>v5.3</strong></div>
+        <div class="info-row"><span>Version WebUI</span><strong>RfLink32 2.0.0</strong></div>
         <div class="info-row">
           <span>Firmware</span>
-          <a href="https://github.com/cpainchaud/RFLink32" target="_blank" rel="noopener">GitHub RFLink32 ↗</a>
+          <a href="https://github.com/florfilla19/RFLink32v2" target="_blank" rel="noopener">GitHub RFLink32 ↗</a>
         </div>
         <div class="info-row">
           <span>WebUI historique</span>
-          <a href="https://github.com/cpainchaud/rflink-webui" target="_blank" rel="noopener">GitHub WebUI ↗</a>
+          <a href="https://github.com/florfilla19/rflink-webui" target="_blank" rel="noopener">GitHub WebUI ↗</a>
         </div>
       </div>
     </div>

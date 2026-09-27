@@ -187,6 +187,25 @@
 					})
 				});
 			},
+			// Quand le module fonctionne en point d'accès (ou que le mode client n'est
+			// pas connecté), il n'y a pas de sortie Internet sur ce réseau : le navigateur
+			// ne pourra jamais joindre raw.githubusercontent.com. On évite alors l'appel
+			// (et la popup d'erreur qui en découle) et on masque simplement la liste des
+			// releases en ligne.
+			checkOnlineReleasesAvailability() {
+				axios.get("/api/status").then((response)=>{
+					const wifiClient = response.data && response.data.network && response.data.network.wifi_client
+					if (wifiClient && wifiClient.status === "connected") {
+						this.getReleases()
+					} else {
+						console.info("Vérification des releases en ligne ignorée : pas de connectivité Internet détectée (mode point d'accès ou Wi-Fi client déconnecté).")
+					}
+				}).catch((error)=>{
+					// Si on n'arrive même pas à lire le statut, on ne tente pas non plus
+					// l'appel vers GitHub.
+					console.error(error)
+				});
+			},
 			handleUrlUpload() {
 				axios.post( '/api/firmware/update_from_url', {url: this.url}).then(()=>{
 					setTimeout(()=>{
@@ -299,7 +318,7 @@
 			}
 		},
 		mounted () {
-			this.getReleases()
+			this.checkOnlineReleasesAvailability()
 		},
 		beforeDestroy() {
 			if(this.polling) clearInterval(this.polling);
